@@ -1,0 +1,17 @@
+-- CreateTable
+CREATE TABLE "teams" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "crestUrl" TEXT,
+    "groupName" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "teams_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE INDEX "teams_groupName_idx" ON "teams"("groupName");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "teams_name_key" ON "teams"("name");

@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>BolaoCopa</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body class="sidebar-open logged-out">
+    <section id="loginView" class="login-view">
+      <form id="loginForm" class="login-card">
+        <div class="brand login-brand">
+          <div class="brand-mark">BC</div>
+          <div class="brand-text">
+            <strong>BolaoCopa</strong>
+            <span>Acesso do apostador</span>
+          </div>
+        </div>
+        <label>Email cadastrado<input name="email" type="text" required autocomplete="username"></label>
+        <label>Senha<input name="password" type="password" autocomplete="current-password" placeholder="Opcional neste momento"></label>
+        <button type="submit">Entrar</button>
+        <div id="poolChoice" class="pool-choice" hidden>
+          <label>Escolha o bolao<select id="loginPoolSelect"></select></label>
+          <button id="continuePoolButton" type="button">Acessar bolao</button>
+        </div>
+      </form>
+    </section>
+
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="Menu principal">
+        <div class="brand">
+          <div class="brand-mark">BC</div>
+          <div class="brand-text">
+            <strong>BolaoCopa</strong>
+            <span>Gestao do bolao</span>
+          </div>
+        </div>
+        <nav class="side-nav">
+          <button class="nav-item active" type="button" data-section="dashboard">Dashboard</button>
+          <button class="nav-item" type="button" data-section="boloes">Boloes</button>
+          <button class="nav-item" type="button" data-section="grupos">Grupos</button>
+          <button class="nav-item" type="button" data-section="times">Times</button>
+          <button class="nav-item" type="button" data-section="participantes">Participantes</button>
+          <button class="nav-item" type="button" data-section="jogos">Jogos</button>
+          <button class="nav-item" type="button" data-section="apostas">Apostas</button>
+          <button class="nav-item" type="button" data-section="resultados">Resultados</button>
+          <button class="nav-item" type="button" data-section="ranking">Ranking</button>
+          <button class="nav-item" type="button" data-section="premiacao">Premiacao</button>
+        </nav>
+        <div class="sidebar-footer">
+          <label>Bolao ativo<select id="activePoolSelect"></select></label>
+        </div>
+      </aside>
+
+      <div class="content-shell">
+        <header class="topbar">
+          <button id="sidebarToggle" class="hamburger" type="button" aria-label="Abrir ou fechar menu">
+            <span></span>
+            <span></span>
+            <span></span>
+          </button>
+          <div>
+            <strong id="pageTitle">Dashboard</strong>
+            <span id="pageSubtitle">Resumo geral do BolaoCopa</span>
+          </div>
+          <div class="user-chip">
+            <span id="loggedUserName"></span>
+            <button id="changePasswordButton" class="secondary-action" type="button">Trocar senha</button>
+            <button id="logoutButton" class="secondary-action" type="button">Sair</button>
+          </div>
+        </header>
+
+        <main>
+          <section id="dashboard" class="section page-section active">
+            <div class="section-title">
+              <h1>Dashboard</h1>
+            </div>
+            <div class="metrics-grid">
+              <article class="metric-card">
+                <span>Participantes</span>
+                <strong id="metricUsers">0</strong>
+              </article>
+              <article class="metric-card">
+                <span>Times</span>
+                <strong id="metricTeams">0</strong>
+              </article>
+              <article class="metric-card">
+                <span>Grupos</span>
+                <strong id="metricGroups">0</strong>
+              </article>
+              <article class="metric-card">
+                <span>Jogos</span>
+                <strong id="metricGames">0</strong>
+              </article>
+              <article class="metric-card">
+                <span>Jogos finalizados</span>
+                <strong id="metricFinished">0</strong>
+              </article>
+              <article class="metric-card">
+                <span>Total arrecadado</span>
+                <strong id="metricCollected">R$ 0,00</strong>
+              </article>
+            </div>
+            <div class="dashboard-grid">
+              <div class="dashboard-panel">
+                <div class="section-title compact-title">
+                  <h2>Top ranking</h2>
+                </div>
+                <div class="table-wrap">
+                  <table>
+                    <thead><tr><th>Posicao</th><th>Participante</th><th>Pontos</th></tr></thead>
+                    <tbody id="dashboardRankingTable"></tbody>
+                  </table>
+                </div>
+              </div>
+              <div class="dashboard-panel">
+                <div class="section-title compact-title">
+                  <h2>Proximos jogos</h2>
+                </div>
+                <div class="table-wrap">
+                  <table>
+                    <thead><tr><th>Data</th><th>Estadio</th><th>Grupo</th><th>Jogo</th></tr></thead>
+                    <tbody id="dashboardGamesTable"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section id="boloes" class="section page-section">
+            <div class="section-title">
+              <h1>Boloes</h1>
+              <button class="primary-action" type="button" data-open-modal="pool">Incluir</button>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Nome</th><th>Inscricao padrao</th><th>Acoes</th></tr></thead>
+                <tbody id="poolsTable"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section id="grupos" class="section page-section">
+            <div class="section-title">
+              <h1>Grupos</h1>
+              <button class="primary-action" type="button" data-open-modal="group">Incluir</button>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Nome do grupo</th><th>Acoes</th></tr></thead>
+                <tbody id="groupsTable"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section id="times" class="section page-section">
+            <div class="section-title">
+              <h1>Times</h1>
+              <button class="primary-action" type="button" data-open-modal="team">Incluir</button>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Brasao</th><th>Nome do time</th><th>Acoes</th></tr></thead>
+                <tbody id="teamsTable"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section id="participantes" class="section page-section">
+        <div class="section-title">
+          <h1>Participantes</h1>
+          <button class="primary-action" type="button" data-open-modal="participant">Incluir</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Nome</th><th>Email</th><th>Inscricao</th><th>Acoes</th></tr></thead>
+            <tbody id="participantsTable"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="jogos" class="section page-section">
+        <div class="section-title">
+          <h2>Jogos</h2>
+          <button class="primary-action" type="button" data-open-modal="game">Incluir</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Data</th><th>Estadio</th><th>Grupo</th><th>Mandante</th><th>Resultado</th><th>Visitante</th><th>Acoes</th></tr></thead>
+            <tbody id="matchesTable"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="apostas" class="section page-section">
+        <div class="section-title">
+          <h2>Apostas</h2>
+          <button class="primary-action" type="button" data-open-modal="bet">Incluir</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Data</th><th>Estadio</th><th>Grupo</th><th>Mandante</th><th>Aposta</th><th>Visitante</th><th>Participante</th><th>Pontos</th><th>Inclusao/alteracao</th><th>Acoes</th></tr></thead>
+            <tbody id="betsTable"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="resultados" class="section page-section">
+        <div class="section-title">
+          <h2>Resultados oficiais</h2>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Data</th><th>Estadio</th><th>Grupo</th><th>Mandante</th><th>Placar</th><th>Visitante</th><th>Acoes</th></tr></thead>
+            <tbody id="resultsTable"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="ranking" class="section page-section">
+        <div class="section-title">
+          <h2>Ranking</h2>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Posicao</th><th>Participante</th><th>Pontos</th></tr></thead>
+            <tbody id="rankingTable"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="premiacao" class="section page-section">
+        <div class="section-title">
+          <h2>Premiacao</h2>
+        </div>
+        <div id="prizesPanel" class="prizes"></div>
+      </section>
+        </main>
+      </div>
+    </div>
+
+    <div id="groupModal" class="modal-backdrop" data-modal="group" hidden>
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="groupModalTitle">
+        <div class="modal-header">
+          <h2 id="groupModalTitle" data-modal-title="group">Grupo</h2>
+          <button class="icon-button" type="button" aria-label="Fechar" data-close-modal>x</button>
+        </div>
+
+        <form id="groupForm" class="modal-form" data-modal-form="group">
+          <input name="id" type="hidden">
+          <label>Nome do grupo<input name="name" maxlength="20" required placeholder="A"></label>
+          <div class="modal-actions">
+            <button class="secondary-action" type="button" data-close-modal>Cancelar</button>
+            <button type="submit">Salvar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div id="poolModal" class="modal-backdrop" data-modal="pool" hidden>
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="poolModalTitle">
+        <div class="modal-header">
+          <h2 id="poolModalTitle" data-modal-title="pool">Bolao</h2>
+          <button class="icon-button" type="button" aria-label="Fechar" data-close-modal>x</button>
+        </div>
+
+        <form id="poolForm" class="modal-form" data-modal-form="pool">
+          <input name="id" type="hidden">
+          <label>Nome do bolao<input name="name" required></label>
+          <label>Inscricao padrao<input name="entryFee" type="number" min="0" step="0.01" required></label>
+          <div class="modal-actions">
+            <button class="secondary-action" type="button" data-close-modal>Cancelar</button>
+            <button type="submit">Salvar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div id="participantModal" class="modal-backdrop" data-modal="participant" hidden>
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="participantModalTitle">
+        <div class="modal-header">
+          <h2 id="participantModalTitle" data-modal-title="participant">Participante</h2>
+          <button class="icon-button" type="button" aria-label="Fechar" data-close-modal>x</button>
+        </div>
+
+        <form id="participantForm" class="modal-form" data-modal-form="participant">
+          <input name="id" type="hidden">
+          <label>Nome<input name="name" required></label>
+          <label>Email<input name="email" type="email" required></label>
+          <label>Inscricao<input name="entryFee" type="number" min="0" step="0.01" required></label>
+          <div class="modal-actions">
+            <button class="secondary-action" type="button" data-close-modal>Cancelar</button>
+            <button type="submit">Salvar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div id="teamModal" class="modal-backdrop" data-modal="team" hidden>
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="teamModalTitle">
+        <div class="modal-header">
+          <h2 id="teamModalTitle" data-modal-title="team">Time</h2>
+          <button class="icon-button" type="button" aria-label="Fechar" data-close-modal>x</button>
+        </div>
+
+        <form id="teamForm" class="modal-form" data-modal-form="team">
+          <input name="id" type="hidden">
+          <label>Nome do time<input name="name" required></label>
+          <label>Brasao<input name="crestFile" type="file" accept="image/*"></label>
+          <input name="crestUrl" type="hidden">
+          <div id="teamCrestPreview" class="crest-preview"></div>
+          <div class="modal-actions">
+            <button class="secondary-action" type="button" data-close-modal>Cancelar</button>
+            <button type="submit">Salvar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div id="gameModal" class="modal-backdrop" data-modal="game" hidden>
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="gameModalTitle">
+        <div class="modal-header">
+          <h2 id="gameModalTitle" data-modal-title="game">Jogo</h2>
+          <button class="icon-button" type="button" aria-label="Fechar" data-close-modal>x</button>
+        </div>
+
+        <form id="matchForm" class="modal-form" data-modal-form="game">
+          <input name="id" type="hidden">
+          <input name="homeTeamId" type="hidden" required>
+          <input name="awayTeamId" type="hidden" required>
+          <label>Mandante</label>
+          <div id="homeTeamPicker" class="team-picker" data-team-picker="homeTeamId"></div>
+          <label>Visitante</label>
+          <div id="awayTeamPicker" class="team-picker" data-team-picker="awayTeamId"></div>
+          <label>Grupo<select name="groupId" required></select></label>
+          <label>Nome do estadio<input name="stadiumName" required></label>
+          <label>Data<input name="matchDate" type="datetime-local" required></label>
+          <div class="modal-actions">
+            <button class="secondary-action" type="button" data-close-modal>Cancelar</button>
+            <button type="submit">Salvar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div id="betModal" class="modal-backdrop" data-modal="bet" hidden>
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="betModalTitle">
+        <div class="modal-header">
+          <h2 id="betModalTitle" data-modal-title="bet">Aposta</h2>
+          <button class="icon-button" type="button" aria-label="Fechar" data-close-modal>x</button>
+        </div>
+
+        <form id="betForm" class="modal-form" data-modal-form="bet">
+          <input name="id" type="hidden">
+          <label>Participante<select name="participantId" required></select></label>
+          <label>Jogo<select name="matchId" required></select></label>
+          <label>Placar mandante<input name="homeScore" type="number" min="0" required></label>
+          <label>Placar visitante<input name="awayScore" type="number" min="0" required></label>
+          <div class="modal-actions">
+            <button class="secondary-action" type="button" data-close-modal>Cancelar</button>
+            <button type="submit">Salvar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div id="resultModal" class="modal-backdrop" data-modal="result" hidden>
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="resultModalTitle">
+        <div class="modal-header">
+          <h2 id="resultModalTitle" data-modal-title="result">Placar Final</h2>
+          <button class="icon-button" type="button" aria-label="Fechar" data-close-modal>x</button>
+        </div>
+
+        <form id="resultForm" class="modal-form" data-modal-form="result">
+          <input name="matchId" type="hidden">
+          <label>Jogo<input name="matchLabel" type="text" readonly></label>
+          <label>Placar mandante<input name="homeScore" type="number" min="0" required></label>
+          <label>Placar visitante<input name="awayScore" type="number" min="0" required></label>
+          <div class="modal-actions">
+            <button class="secondary-action" type="button" data-close-modal>Cancelar</button>
+            <button type="submit">Salvar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div id="passwordModal" class="modal-backdrop" data-modal="password" hidden>
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="passwordModalTitle">
+        <div class="modal-header">
+          <h2 id="passwordModalTitle" data-modal-title="password">Trocar senha</h2>
+          <button class="icon-button" type="button" aria-label="Fechar" data-close-modal>x</button>
+        </div>
+
+        <form id="passwordForm" class="modal-form" data-modal-form="password">
+          <label>Nova senha<input name="password" type="password" minlength="4" required autocomplete="new-password"></label>
+          <label>Confirmar senha<input name="confirmPassword" type="password" minlength="4" required autocomplete="new-password"></label>
+          <div class="modal-actions">
+            <button class="secondary-action" type="button" data-close-modal>Cancelar</button>
+            <button type="submit">Salvar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div id="toast" role="status" aria-live="polite"></div>
+    <script src="/app.js"></script>
+  </body>
+</html>

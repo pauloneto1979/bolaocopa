@@ -1,0 +1,152 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum GameStatus {
+  SCHEDULED
+  LIVE
+  FINISHED
+  CANCELLED
+}
+
+model Pool {
+  id        String   @id @default(uuid())
+  name      String
+  entryFee  Decimal  @db.Decimal(10, 2)
+  users     User[]
+  participants PoolParticipant[]
+  bets      Bet[]
+  prizes    Prize[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("pools")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  passwordHash String?
+  entryFee  Decimal  @default(50) @db.Decimal(10, 2)
+  poolId    String?
+  pool      Pool?    @relation(fields: [poolId], references: [id], onDelete: SetNull)
+  poolParticipants PoolParticipant[]
+  bets      Bet[]
+  prizes    Prize[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([poolId])
+  @@map("users")
+}
+
+model PoolParticipant {
+  id        String   @id @default(uuid())
+  poolId    String
+  userId    String
+  entryFee  Decimal  @default(50) @db.Decimal(10, 2)
+  pool      Pool     @relation(fields: [poolId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([poolId, userId])
+  @@index([poolId])
+  @@index([userId])
+  @@map("pool_participants")
+}
+
+model Game {
+  id         String     @id @default(uuid())
+  externalId String?    @unique
+  homeTeamId String?
+  awayTeamId String?
+  groupId    String?
+  homeTeam   String
+  awayTeam   String
+  stadiumName String?
+  gameDate   DateTime
+  homeScore  Int?
+  awayScore  Int?
+  status     GameStatus @default(SCHEDULED)
+  homeTeamRef Team?      @relation("HomeTeamGames", fields: [homeTeamId], references: [id], onDelete: SetNull)
+  awayTeamRef Team?      @relation("AwayTeamGames", fields: [awayTeamId], references: [id], onDelete: SetNull)
+  group      Group?      @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  bets       Bet[]
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  @@index([homeTeamId])
+  @@index([awayTeamId])
+  @@index([groupId])
+  @@index([gameDate])
+  @@index([status])
+  @@map("games")
+}
+
+model Group {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  games     Game[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("groups")
+}
+
+model Team {
+  id        String   @id @default(uuid())
+  name      String
+  crestUrl  String?
+  homeGames Game[]   @relation("HomeTeamGames")
+  awayGames Game[]   @relation("AwayTeamGames")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([name])
+  @@map("teams")
+}
+
+model Bet {
+  id        String   @id @default(uuid())
+  poolId    String?
+  userId    String
+  gameId    String
+  homeScore Int
+  awayScore Int
+  betAmount Decimal  @default(0) @db.Decimal(10, 2)
+  points    Int      @default(0)
+  pool      Pool?    @relation(fields: [poolId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  game      Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([poolId, userId, gameId])
+  @@index([poolId])
+  @@index([userId])
+  @@index([gameId])
+  @@map("bets")
+}
+
+model Prize {
+  id        String   @id @default(uuid())
+  poolId    String
+  userId    String
+  position  Int
+  amount    Decimal  @db.Decimal(10, 2)
+  pool      Pool     @relation(fields: [poolId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([poolId])
+  @@index([userId])
+  @@map("prizes")
+}
