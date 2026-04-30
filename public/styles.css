@@ -138,6 +138,18 @@ body {
   color: var(--sidebar-text);
 }
 
+.environment-badge {
+  margin-top: 10px;
+  padding: 8px 10px;
+  border: 1px solid rgba(15, 118, 110, 0.55);
+  border-radius: 6px;
+  background: rgba(15, 118, 110, 0.16);
+  color: #d8fffa;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+}
+
 .nav-item {
   min-height: 42px;
   padding: 10px 12px;
