@@ -7,8 +7,18 @@ const create = asyncHandler(async (req, res) => {
   return success(res, user, 201);
 });
 
+const createAccount = asyncHandler(async (req, res) => {
+  const user = await userService.createAccount(req.body);
+  return success(res, user, 201);
+});
+
 const list = asyncHandler(async (req, res) => {
   const users = await userService.listUsers(req.query);
+  return success(res, users);
+});
+
+const listAccounts = asyncHandler(async (req, res) => {
+  const users = await userService.listAccounts();
   return success(res, users);
 });
 
@@ -17,9 +27,28 @@ const update = asyncHandler(async (req, res) => {
   return success(res, user);
 });
 
+const updateAccount = asyncHandler(async (req, res) => {
+  const user = await userService.updateAccount(req.params.id, req.body);
+  return success(res, user);
+});
+
 const remove = asyncHandler(async (req, res) => {
   const result = await userService.deleteUser(req.params.id, req.query);
   return success(res, result);
 });
 
-module.exports = { create, list, update, remove };
+const removeAccount = asyncHandler(async (req, res) => {
+  const result = await userService.deleteAccount(req.params.id);
+  return success(res, result);
+});
+
+module.exports = {
+  create,
+  createAccount,
+  list,
+  listAccounts,
+  update,
+  updateAccount,
+  remove,
+  removeAccount
+};

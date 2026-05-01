@@ -74,6 +74,131 @@ async function listUsers(query = {}) {
   }));
 }
 
+async function createAccount(input) {
+  required(input.name, "name");
+  required(input.email, "email");
+  required(input.password, "password");
+
+  const password = String(input.password);
+  if (password.length < 4) throw new AppError("A senha deve ter pelo menos 4 caracteres.", 400);
+
+  try {
+    const user = await prisma.user.create({
+      data: {
+        name: String(input.name).trim(),
+        email: String(input.email).trim().toLowerCase(),
+        passwordHash: hashPassword(password)
+      }
+    });
+
+    return {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      hasPassword: Boolean(user.passwordHash),
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt
+    };
+  } catch (error) {
+    if (error.code === "P2002") throw new AppError("Ja existe usuario com este email.", 409);
+    throw error;
+  }
+}
+
+async function listAccounts() {
+  const users = await prisma.user.findMany({
+    orderBy: { name: "asc" },
+    include: {
+      _count: {
+        select: {
+          poolMemberships: true,
+          bets: true,
+          prizes: true,
+          ownedPools: true
+        }
+      }
+    }
+  });
+
+  return users.map(user => ({
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    hasPassword: Boolean(user.passwordHash),
+    membershipsCount: user._count.poolMemberships,
+    betsCount: user._count.bets,
+    prizesCount: user._count.prizes,
+    ownedPoolsCount: user._count.ownedPools,
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt
+  }));
+}
+
+async function updateAccount(userId, input) {
+  required(userId, "id");
+  required(input.name, "name");
+  required(input.email, "email");
+
+  const data = {
+    name: String(input.name).trim(),
+    email: String(input.email).trim().toLowerCase()
+  };
+
+  if (input.password) {
+    const password = String(input.password);
+    if (password.length < 4) throw new AppError("A senha deve ter pelo menos 4 caracteres.", 400);
+    data.passwordHash = hashPassword(password);
+  }
+
+  try {
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data
+    });
+
+    return {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      hasPassword: Boolean(user.passwordHash),
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt
+    };
+  } catch (error) {
+    if (error.code === "P2025") throw new AppError("Usuario nao encontrado.", 404);
+    if (error.code === "P2002") throw new AppError("Ja existe usuario com este email.", 409);
+    throw error;
+  }
+}
+
+async function deleteAccount(userId) {
+  required(userId, "id");
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    include: {
+      _count: {
+        select: {
+          poolMemberships: true,
+          bets: true,
+          prizes: true,
+          ownedPools: true
+        }
+      }
+    }
+  });
+
+  if (!user) throw new AppError("Usuario nao encontrado.", 404);
+
+  const hasData = user._count.poolMemberships > 0 || user._count.bets > 0 || user._count.prizes > 0 || user._count.ownedPools > 0;
+  if (hasData) {
+    throw new AppError("Nao e permitido excluir usuario com vinculos, apostas, premios ou boloes proprietarios.", 400);
+  }
+
+  await prisma.user.delete({ where: { id: userId } });
+  return { deleted: true };
+}
+
 async function updateUser(userId, input) {
   required(userId, "id");
   required(input.name, "name");
@@ -258,6 +383,10 @@ async function updatePassword(input) {
 module.exports = {
   createUser,
   register,
+  createAccount,
+  listAccounts,
+  updateAccount,
+  deleteAccount,
   listUsers,
   updateUser,
   deleteUser,

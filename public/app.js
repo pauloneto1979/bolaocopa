@@ -2,6 +2,7 @@ const state = {
   currentUser: null,
   currentPool: null,
   pendingLoginUser: null,
+  accounts: [],
   pools: [],
   users: [],
   groups: [],
@@ -32,6 +33,10 @@ const pageLabels = {
   boloes: {
     title: "Boloes",
     subtitle: "Cadastro e manutencao dos boloes"
+  },
+  usuarios: {
+    title: "Usuarios",
+    subtitle: "Cadastro das contas de acesso"
   },
   times: {
     title: "Times",
@@ -140,7 +145,7 @@ function isPoolAdmin() {
 }
 
 function renderRoleAccess() {
-  const adminOnlySections = ["boloes", "grupos", "times", "participantes", "resultados"];
+  const adminOnlySections = ["boloes", "usuarios", "grupos", "times", "participantes", "resultados"];
   const canAdmin = isPoolAdmin();
 
   document.querySelectorAll(".nav-item").forEach(item => {
@@ -367,6 +372,29 @@ function renderPools() {
   `).join("");
 }
 
+function renderAccounts() {
+  const table = qs("#accountsTable");
+  if (!state.accounts.length) {
+    table.innerHTML = `<tr><td class="empty" colspan="5">Nenhum usuario cadastrado.</td></tr>`;
+    return;
+  }
+
+  table.innerHTML = state.accounts.map(user => `
+    <tr>
+      <td>${user.name}</td>
+      <td>${user.email || "-"}</td>
+      <td>${user.hasPassword ? "Cadastrada" : "Pendente"}</td>
+      <td>${user.membershipsCount || 0}</td>
+      <td>
+        <div class="row-actions">
+          ${actionButton("edit", "data-edit-account", user.id, "Alterar")}
+          ${actionButton("trash", "data-delete-account", user.id, "Excluir")}
+        </div>
+      </td>
+    </tr>
+  `).join("");
+}
+
 function renderTeams() {
   const table = qs("#teamsTable");
   if (!state.teams.length) {
@@ -577,6 +605,7 @@ function renderSelects() {
 function renderAll() {
   renderDashboard();
   renderPools();
+  renderAccounts();
   renderGroups();
   renderTeams();
   renderUsers();
@@ -632,6 +661,7 @@ async function refresh() {
     api(poolQuery("/ranking")),
     api(poolQuery("/prizes"))
   ]);
+  const accounts = canAdmin ? await api(poolQuery("/users/accounts")) : [];
   const users = canAdmin
     ? await api(poolQuery("/users"))
     : [{ ...state.currentUser, entryFee: state.currentPool.entryFee || state.currentPool.entryValue || 0 }];
@@ -639,7 +669,7 @@ async function refresh() {
     ? await api(poolQuery("/bets"))
     : await api(poolQuery(`/bets/user/${state.currentUser.id}`));
 
-  Object.assign(state, { pools, users, groups, teams, games, bets, ranking, prizes });
+  Object.assign(state, { accounts, pools, users, groups, teams, games, bets, ranking, prizes });
   renderAll();
   renderRoleAccess();
 }
@@ -689,6 +719,30 @@ bindForm("#poolForm", data => {
     }
     closeModal();
     toast(isEdit ? "Bolao alterado." : "Bolao cadastrado.");
+  });
+});
+
+bindForm("#accountForm", data => {
+  const isEdit = Boolean(data.id);
+  if (!isEdit && !data.password) {
+    throw new Error("Informe uma senha inicial.");
+  }
+
+  const payload = {
+    name: data.name,
+    email: data.email
+  };
+
+  if (data.password) {
+    payload.password = data.password;
+  }
+
+  return api(poolQuery(isEdit ? `/users/accounts/${data.id}` : "/users/accounts"), {
+    method: isEdit ? "PUT" : "POST",
+    body: JSON.stringify(payload)
+  }).then(() => {
+    closeModal();
+    toast(isEdit ? "Usuario alterado." : "Usuario cadastrado.");
   });
 });
 
@@ -864,6 +918,7 @@ qs("#changePasswordButton").addEventListener("click", () => {
 
 const modalTitles = {
   pool: "Bolao",
+  account: "Usuario",
   group: "Grupo",
   team: "Time",
   participant: "Participante",
@@ -911,6 +966,18 @@ function openModal(type, mode = "create", item = null) {
 
   if (type === "pool" && !item) {
     form.elements.entryFee.value = 50;
+  }
+
+  if (type === "account" && item) {
+    form.elements.name.value = item.name || "";
+    form.elements.email.value = item.email || "";
+    form.elements.password.value = "";
+    form.elements.password.required = false;
+  }
+
+  if (type === "account" && !item) {
+    form.elements.password.value = "";
+    form.elements.password.required = true;
   }
 
   if (type === "group" && item) {
@@ -986,6 +1053,8 @@ document.addEventListener("click", async event => {
   const selectTeam = event.target.closest("[data-select-team]");
   const poolButton = event.target.closest("[data-edit-pool]");
   const deletePoolButton = event.target.closest("[data-delete-pool]");
+  const accountButton = event.target.closest("[data-edit-account]");
+  const deleteAccountButton = event.target.closest("[data-delete-account]");
   const userButton = event.target.closest("[data-edit-user]");
   const deleteUserButton = event.target.closest("[data-delete-user]");
   const groupButton = event.target.closest("[data-edit-group]");
@@ -1029,6 +1098,10 @@ document.addEventListener("click", async event => {
       openModal("pool", "edit", state.pools.find(pool => pool.id === poolButton.dataset.editPool));
     }
 
+    if (accountButton) {
+      openModal("account", "edit", state.accounts.find(user => user.id === accountButton.dataset.editAccount));
+    }
+
     if (userButton) {
       openModal("participant", "edit", state.users.find(user => user.id === userButton.dataset.editUser));
     }
@@ -1060,6 +1133,13 @@ document.addEventListener("click", async event => {
         setCurrentPool(null);
       }
       toast("Bolao excluido.");
+      await refresh();
+    }
+
+    if (deleteAccountButton && window.confirm("Excluir este usuario? A exclusao so sera permitida se nao houver vinculos ou apostas.")) {
+      const deleteAccountId = deleteAccountButton.dataset.deleteAccount;
+      await api(poolQuery(`/users/accounts/${deleteAccountId}`), { method: "DELETE" });
+      toast("Usuario excluido.");
       await refresh();
     }
 

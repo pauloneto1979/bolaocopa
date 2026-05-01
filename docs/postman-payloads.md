@@ -67,6 +67,42 @@ O usuario autenticado vira `OWNER` automaticamente.
 
 Requer perfil `OWNER` no bolao.
 
+## Usuarios globais
+
+Essas rotas gerenciam contas de acesso. Use `poolId` na query para validar que o usuario autenticado e `OWNER` ou `ADMIN` do bolao ativo.
+
+### Listar usuarios
+`GET /users/accounts?poolId=uuid-do-bolao`
+
+### Criar usuario
+`POST /users/accounts?poolId=uuid-do-bolao`
+
+```json
+{
+  "name": "Novo Usuario",
+  "email": "novo@email.com",
+  "password": "1234"
+}
+```
+
+### Alterar usuario
+`PUT /users/accounts/:userId?poolId=uuid-do-bolao`
+
+```json
+{
+  "name": "Usuario Alterado",
+  "email": "usuario@email.com",
+  "password": "nova-senha-opcional"
+}
+```
+
+Se `password` nao for enviado, a senha atual permanece.
+
+### Excluir usuario
+`DELETE /users/accounts/:userId?poolId=uuid-do-bolao`
+
+Usuarios com vinculos, apostas, premios ou boloes proprietarios nao podem ser excluidos.
+
 ## Membros
 
 ### Listar membros

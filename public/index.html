@@ -40,6 +40,7 @@
         <nav class="side-nav">
           <button class="nav-item active" type="button" data-section="dashboard">Dashboard</button>
           <button class="nav-item" type="button" data-section="boloes">Boloes</button>
+          <button class="nav-item" type="button" data-section="usuarios">Usuarios</button>
           <button class="nav-item" type="button" data-section="grupos">Grupos</button>
           <button class="nav-item" type="button" data-section="times">Times</button>
           <button class="nav-item" type="button" data-section="participantes">Participantes</button>
@@ -139,6 +140,19 @@
               <table>
                 <thead><tr><th>Nome</th><th>Inscricao padrao</th><th>Acoes</th></tr></thead>
                 <tbody id="poolsTable"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section id="usuarios" class="section page-section">
+            <div class="section-title">
+              <h1>Usuarios</h1>
+              <button class="primary-action" type="button" data-open-modal="account">Incluir</button>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Nome</th><th>Email</th><th>Senha</th><th>Vinculos</th><th>Acoes</th></tr></thead>
+                <tbody id="accountsTable"></tbody>
               </table>
             </div>
           </section>
@@ -271,6 +285,26 @@
           <input name="id" type="hidden">
           <label>Nome do bolao<input name="name" required></label>
           <label>Inscricao padrao<input name="entryFee" type="number" min="0" step="0.01" required></label>
+          <div class="modal-actions">
+            <button class="secondary-action" type="button" data-close-modal>Cancelar</button>
+            <button type="submit">Salvar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div id="accountModal" class="modal-backdrop" data-modal="account" hidden>
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="accountModalTitle">
+        <div class="modal-header">
+          <h2 id="accountModalTitle" data-modal-title="account">Usuario</h2>
+          <button class="icon-button" type="button" aria-label="Fechar" data-close-modal>x</button>
+        </div>
+
+        <form id="accountForm" class="modal-form" data-modal-form="account">
+          <input name="id" type="hidden">
+          <label>Nome<input name="name" required></label>
+          <label>Email<input name="email" type="email" required></label>
+          <label>Senha<input name="password" type="password" minlength="4" autocomplete="new-password"></label>
           <div class="modal-actions">
             <button class="secondary-action" type="button" data-close-modal>Cancelar</button>
             <button type="submit">Salvar</button>
