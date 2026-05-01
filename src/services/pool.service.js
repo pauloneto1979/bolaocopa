@@ -24,7 +24,8 @@ async function getDefaultPool() {
   return prisma.pool.create({
     data: {
       name: "BolaoCopa",
-      entryFee: 50
+      entryFee: 50,
+      entryValue: 50
     }
   });
 }
@@ -45,12 +46,30 @@ async function resolvePool(poolId) {
 
 async function createPool(input) {
   required(input.name, "name");
-  const entryFee = toPositiveNumber(input.entryFee, "entryFee");
+  required(input.ownerId, "ownerId");
+  const entryValue = toPositiveNumber(input.entryValue ?? input.entryFee, "entryValue");
+
+  const user = await prisma.user.findUnique({ where: { id: input.ownerId } });
+  if (!user) throw new AppError("Proprietario nao encontrado.", 404);
 
   return prisma.pool.create({
     data: {
       name: String(input.name).trim(),
-      entryFee
+      entryFee: entryValue,
+      entryValue,
+      ownerId: user.id,
+      members: {
+        create: {
+          userId: user.id,
+          role: "OWNER",
+          status: "ACTIVE",
+          entryValue
+        }
+      }
+    },
+    include: {
+      owner: true,
+      members: true
     }
   });
 }
@@ -58,7 +77,7 @@ async function createPool(input) {
 async function updatePool(poolId, input) {
   required(poolId, "id");
   required(input.name, "name");
-  const entryFee = toPositiveNumber(input.entryFee, "entryFee");
+  const entryValue = toPositiveNumber(input.entryValue ?? input.entryFee, "entryValue");
 
   const pool = await prisma.pool.findUnique({ where: { id: poolId } });
   if (!pool) throw new AppError("Bolao nao encontrado.", 404);
@@ -67,7 +86,8 @@ async function updatePool(poolId, input) {
     where: { id: poolId },
     data: {
       name: String(input.name).trim(),
-      entryFee
+      entryFee: entryValue,
+      entryValue
     }
   });
 }
@@ -81,6 +101,7 @@ async function deletePool(poolId) {
       _count: {
         select: {
           participants: true,
+          members: true,
           bets: true,
           prizes: true
         }
@@ -90,7 +111,7 @@ async function deletePool(poolId) {
 
   if (!pool) throw new AppError("Bolao nao encontrado.", 404);
 
-  const hasData = pool._count.participants > 0 || pool._count.bets > 0 || pool._count.prizes > 0;
+  const hasData = pool._count.participants > 0 || pool._count.members > 0 || pool._count.bets > 0 || pool._count.prizes > 0;
   if (hasData) {
     throw new AppError("Nao e permitido excluir um bolao com participantes, apostas ou premiacoes. Exclua os dados vinculados antes.", 400);
   }
@@ -101,7 +122,10 @@ async function deletePool(poolId) {
 
 async function listPools() {
   return prisma.pool.findMany({
-    orderBy: { name: "asc" }
+    orderBy: { name: "asc" },
+    include: {
+      owner: true
+    }
   });
 }
 

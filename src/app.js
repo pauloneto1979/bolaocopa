@@ -9,6 +9,7 @@ const betRoutes = require("./routes/bet.routes");
 const teamRoutes = require("./routes/team.routes");
 const groupRoutes = require("./routes/group.routes");
 const poolRoutes = require("./routes/pool.routes");
+const memberRoutes = require("./routes/member.routes");
 const rankingRoutes = require("./routes/ranking.routes");
 const prizeRoutes = require("./routes/prize.routes");
 const { errorHandler } = require("./middlewares/errorHandler");
@@ -29,6 +30,7 @@ app.get("/health", (req, res) => {
 });
 
 app.use("/auth", authRoutes);
+app.use("/pools/:poolId/members", memberRoutes);
 app.use("/pools", poolRoutes);
 app.use("/users", userRoutes);
 app.use("/groups", groupRoutes);

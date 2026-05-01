@@ -14,12 +14,28 @@ enum GameStatus {
   CANCELLED
 }
 
+enum Role {
+  OWNER
+  ADMIN
+  USER
+}
+
+enum MemberStatus {
+  PENDING
+  ACTIVE
+  BLOCKED
+}
+
 model Pool {
   id        String   @id @default(uuid())
   name      String
   entryFee  Decimal  @db.Decimal(10, 2)
+  entryValue Decimal @default(50) @db.Decimal(10, 2)
+  ownerId   String?
+  owner     User?    @relation("PoolOwner", fields: [ownerId], references: [id], onDelete: SetNull)
   users     User[]
   participants PoolParticipant[]
+  members   PoolMember[]
   bets      Bet[]
   prizes    Prize[]
   createdAt DateTime @default(now())
@@ -37,6 +53,8 @@ model User {
   poolId    String?
   pool      Pool?    @relation(fields: [poolId], references: [id], onDelete: SetNull)
   poolParticipants PoolParticipant[]
+  poolMemberships PoolMember[]
+  ownedPools Pool[] @relation("PoolOwner")
   bets      Bet[]
   prizes    Prize[]
   createdAt DateTime @default(now())
@@ -60,6 +78,26 @@ model PoolParticipant {
   @@index([poolId])
   @@index([userId])
   @@map("pool_participants")
+}
+
+model PoolMember {
+  id        String       @id @default(uuid())
+  poolId    String
+  userId    String
+  role      Role         @default(USER)
+  status    MemberStatus @default(PENDING)
+  entryValue Decimal     @default(50) @db.Decimal(10, 2)
+  pool      Pool         @relation(fields: [poolId], references: [id], onDelete: Cascade)
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@unique([poolId, userId])
+  @@index([poolId])
+  @@index([userId])
+  @@index([role])
+  @@index([status])
+  @@map("pool_members")
 }
 
 model Game {

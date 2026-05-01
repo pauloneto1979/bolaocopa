@@ -9,12 +9,12 @@ function roundMoney(value) {
 async function calculatePrizes(poolId) {
   const pool = await poolService.resolvePool(poolId);
   const ranking = await rankingService.getRanking(pool.id);
-  const participants = await prisma.poolParticipant.findMany({
-    where: { poolId: pool.id }
+  const participants = await prisma.poolMember.findMany({
+    where: { poolId: pool.id, status: "ACTIVE" }
   });
   const usersCount = participants.length;
   const totalCollected = roundMoney(
-    participants.reduce((sum, participant) => sum + Number(participant.entryFee), 0)
+    participants.reduce((sum, participant) => sum + Number(participant.entryValue), 0)
   );
 
   await prisma.prize.deleteMany({

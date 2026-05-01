@@ -4,8 +4,8 @@ const poolService = require("./pool.service");
 async function getRanking(poolId) {
   const pool = await poolService.resolvePool(poolId);
 
-  const participants = await prisma.poolParticipant.findMany({
-    where: { poolId: pool.id },
+  const participants = await prisma.poolMember.findMany({
+    where: { poolId: pool.id, status: "ACTIVE" },
     include: {
       user: {
         include: {

@@ -75,8 +75,13 @@ function toast(message) {
 }
 
 async function api(path, options = {}) {
+  const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
+  if (state.currentUser?.token) {
+    headers.Authorization = `Bearer ${state.currentUser.token}`;
+  }
+
   const response = await fetch(path, {
-    headers: { "Content-Type": "application/json" },
+    headers,
     ...options
   });
   const body = await response.json();
@@ -127,6 +132,24 @@ function renderAuth() {
   document.body.classList.toggle("logged-out", !isLogged);
   qs("#loggedUserName").textContent = isLogged ? state.currentUser.name : "";
   renderPoolSelectors();
+  renderRoleAccess();
+}
+
+function isPoolAdmin() {
+  return state.currentPool?.role === "OWNER" || state.currentPool?.role === "ADMIN" || state.currentPool?.isAdmin;
+}
+
+function renderRoleAccess() {
+  const adminOnlySections = ["boloes", "grupos", "times", "participantes", "resultados"];
+  const canAdmin = isPoolAdmin();
+
+  document.querySelectorAll(".nav-item").forEach(item => {
+    item.hidden = adminOnlySections.includes(item.dataset.section) && !canAdmin;
+  });
+
+  if (!canAdmin && adminOnlySections.includes(qs(".page-section.active")?.id)) {
+    showSection("dashboard");
+  }
 }
 
 function renderPoolSelectors() {
@@ -599,20 +622,26 @@ async function loadBetsForSelectedUser() {
 
 async function refresh() {
   if (!state.currentUser || !state.currentPool) return;
+  const canAdmin = isPoolAdmin();
 
-  const [pools, users, groups, teams, games, bets, ranking, prizes] = await Promise.all([
+  const [pools, groups, teams, games, ranking, prizes] = await Promise.all([
     api("/pools"),
-    api(poolQuery("/users")),
-    api("/groups"),
-    api("/teams"),
-    api("/games"),
-    api(poolQuery("/bets")),
+    api(poolQuery("/groups")),
+    api(poolQuery("/teams")),
+    api(poolQuery("/games")),
     api(poolQuery("/ranking")),
     api(poolQuery("/prizes"))
   ]);
+  const users = canAdmin
+    ? await api(poolQuery("/users"))
+    : [{ ...state.currentUser, entryFee: state.currentPool.entryFee || state.currentPool.entryValue || 0 }];
+  const bets = canAdmin
+    ? await api(poolQuery("/bets"))
+    : await api(poolQuery(`/bets/user/${state.currentUser.id}`));
 
   Object.assign(state, { pools, users, groups, teams, games, bets, ranking, prizes });
   renderAll();
+  renderRoleAccess();
 }
 
 function bindForm(selector, handler) {
@@ -631,7 +660,7 @@ function bindForm(selector, handler) {
 
 bindForm("#participantForm", data => {
   const isEdit = Boolean(data.id);
-  return api(isEdit ? `/users/${data.id}` : "/users", {
+  return api(poolQuery(isEdit ? `/users/${data.id}` : "/users"), {
     method: isEdit ? "PUT" : "POST",
     body: JSON.stringify({
       name: data.name,
@@ -665,7 +694,7 @@ bindForm("#poolForm", data => {
 
 bindForm("#groupForm", data => {
   const isEdit = Boolean(data.id);
-  return api(isEdit ? `/groups/${data.id}` : "/groups", {
+  return api(poolQuery(isEdit ? `/groups/${data.id}` : "/groups"), {
     method: isEdit ? "PUT" : "POST",
     body: JSON.stringify({ name: data.name })
   }).then(() => {
@@ -678,7 +707,7 @@ bindForm("#teamForm", data => {
   const isEdit = Boolean(data.id);
   const form = qs("#teamForm");
   const file = form.elements.crestFile.files[0];
-  const saveTeam = crestUrl => api(isEdit ? `/teams/${data.id}` : "/teams", {
+  const saveTeam = crestUrl => api(poolQuery(isEdit ? `/teams/${data.id}` : "/teams"), {
     method: isEdit ? "PUT" : "POST",
     body: JSON.stringify({
       name: data.name,
@@ -696,7 +725,7 @@ bindForm("#teamForm", data => {
 
 bindForm("#matchForm", data => {
   const isEdit = Boolean(data.id);
-  return api(isEdit ? `/games/${data.id}` : "/games", {
+  return api(poolQuery(isEdit ? `/games/${data.id}` : "/games"), {
     method: isEdit ? "PUT" : "POST",
     body: JSON.stringify({
       homeTeamId: data.homeTeamId,
@@ -729,7 +758,7 @@ bindForm("#betForm", data => {
 });
 
 bindForm("#resultForm", data => {
-  return api(`/games/${data.matchId}/result`, {
+  return api(poolQuery(`/games/${data.matchId}/result`), {
     method: "PUT",
     body: JSON.stringify({
       homeScore: data.homeScore,
@@ -1043,28 +1072,28 @@ document.addEventListener("click", async event => {
 
     if (deleteGroupButton && window.confirm("Excluir este grupo? Os jogos vinculados ficarao sem grupo.")) {
       const deleteGroupId = deleteGroupButton.dataset.deleteGroup;
-      await api(`/groups/${deleteGroupId}`, { method: "DELETE" });
+      await api(poolQuery(`/groups/${deleteGroupId}`), { method: "DELETE" });
       toast("Grupo excluido.");
       await refresh();
     }
 
     if (deleteTeamButton && window.confirm("Excluir este time?")) {
       const deleteTeamId = deleteTeamButton.dataset.deleteTeam;
-      await api(`/teams/${deleteTeamId}`, { method: "DELETE" });
+      await api(poolQuery(`/teams/${deleteTeamId}`), { method: "DELETE" });
       toast("Time excluido.");
       await refresh();
     }
 
     if (deleteGameButton && window.confirm("Excluir este jogo e as apostas vinculadas?")) {
       const deleteGameId = deleteGameButton.dataset.deleteGame;
-      await api(`/games/${deleteGameId}`, { method: "DELETE" });
+      await api(poolQuery(`/games/${deleteGameId}`), { method: "DELETE" });
       toast("Jogo excluido.");
       await refresh();
     }
 
     if (deleteBetButton && window.confirm("Excluir esta aposta?")) {
       const deleteBetId = deleteBetButton.dataset.deleteBet;
-      await api(`/bets/${deleteBetId}`, { method: "DELETE" });
+      await api(poolQuery(`/bets/${deleteBetId}`), { method: "DELETE" });
       toast("Aposta excluida.");
       await refresh();
     }
@@ -1075,6 +1104,10 @@ document.addEventListener("click", async event => {
 
 state.currentUser = loadCurrentUser();
 state.currentPool = loadCurrentPool();
+if (state.currentUser && !state.currentUser.token) {
+  setCurrentUser(null);
+  setCurrentPool(null);
+}
 if (state.currentUser && state.currentPool) {
   const stillAllowed = state.currentUser.pools?.some(pool => pool.id === state.currentPool.id);
   if (!stillAllowed) setCurrentPool(null);

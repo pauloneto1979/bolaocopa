@@ -3,7 +3,10 @@ const { success } = require("../utils/response");
 const poolService = require("../services/pool.service");
 
 const create = asyncHandler(async (req, res) => {
-  const pool = await poolService.createPool(req.body);
+  const pool = await poolService.createPool({
+    ...req.body,
+    ownerId: req.user.id
+  });
   return success(res, pool, 201);
 });
 

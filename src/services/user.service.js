@@ -2,6 +2,7 @@ const prisma = require("../config/prisma");
 const AppError = require("../utils/AppError");
 const { required, toPositiveNumber } = require("../utils/validators");
 const { hashPassword, verifyPassword } = require("../utils/password");
+const { signToken } = require("../utils/jwt");
 const poolService = require("./pool.service");
 
 async function createUser(input) {
@@ -20,23 +21,32 @@ async function createUser(input) {
       create: { name, email, entryFee, poolId: pool.id }
     });
 
-    const membership = await prisma.poolParticipant.upsert({
+    const membership = await prisma.poolMember.upsert({
       where: {
         poolId_userId: {
           poolId: pool.id,
           userId: user.id
         }
       },
-      update: { entryFee },
+      update: { entryValue: entryFee },
       create: {
         poolId: pool.id,
         userId: user.id,
-        entryFee
+        role: input.role || "USER",
+        status: input.status || "ACTIVE",
+        entryValue: entryFee
       },
       include: { user: true, pool: true }
     });
 
-    return { ...membership.user, entryFee: membership.entryFee, pool: membership.pool };
+    return {
+      ...membership.user,
+      entryFee: membership.entryValue,
+      entryValue: membership.entryValue,
+      role: membership.role,
+      status: membership.status,
+      pool: membership.pool
+    };
   } catch (error) {
     if (error.code === "P2002") {
       throw new AppError("Ja existe usuario com este email.", 409);
@@ -48,7 +58,7 @@ async function createUser(input) {
 async function listUsers(query = {}) {
   const pool = await poolService.resolvePool(query.poolId);
 
-  const participants = await prisma.poolParticipant.findMany({
+  const participants = await prisma.poolMember.findMany({
     where: { poolId: pool.id },
     orderBy: { user: { name: "asc" } },
     include: { user: true, pool: true }
@@ -56,7 +66,10 @@ async function listUsers(query = {}) {
 
   return participants.map(item => ({
     ...item.user,
-    entryFee: item.entryFee,
+    entryFee: item.entryValue,
+    entryValue: item.entryValue,
+    role: item.role,
+    status: item.status,
     pool: item.pool
   }));
 }
@@ -81,19 +94,26 @@ async function updateUser(userId, input) {
       }
     });
 
-    const membership = await prisma.poolParticipant.upsert({
+    const membership = await prisma.poolMember.upsert({
       where: {
         poolId_userId: {
           poolId: pool.id,
           userId
         }
       },
-      update: { entryFee },
-      create: { poolId: pool.id, userId, entryFee },
+      update: { entryValue: entryFee },
+      create: { poolId: pool.id, userId, role: "USER", status: "ACTIVE", entryValue: entryFee },
       include: { pool: true }
     });
 
-    return { ...updated, entryFee: membership.entryFee, pool: membership.pool };
+    return {
+      ...updated,
+      entryFee: membership.entryValue,
+      entryValue: membership.entryValue,
+      role: membership.role,
+      status: membership.status,
+      pool: membership.pool
+    };
   } catch (error) {
     if (error.code === "P2002") {
       throw new AppError("Ja existe usuario com este email.", 409);
@@ -110,17 +130,46 @@ async function deleteUser(userId, query = {}) {
 
   const pool = await poolService.resolvePool(query.poolId);
   await prisma.bet.deleteMany({ where: { userId, poolId: pool.id } });
-  await prisma.poolParticipant.deleteMany({ where: { userId, poolId: pool.id } });
+  await prisma.poolMember.deleteMany({ where: { userId, poolId: pool.id } });
   return { deleted: true };
+}
+
+async function register(input) {
+  required(input.name, "name");
+  required(input.email, "email");
+  required(input.password, "password");
+
+  const password = String(input.password);
+  if (password.length < 4) throw new AppError("A senha deve ter pelo menos 4 caracteres.", 400);
+
+  try {
+    const user = await prisma.user.create({
+      data: {
+        name: String(input.name).trim(),
+        email: String(input.email).trim().toLowerCase(),
+        passwordHash: hashPassword(password)
+      }
+    });
+
+    return {
+      id: user.id,
+      name: user.name,
+      email: user.email
+    };
+  } catch (error) {
+    if (error.code === "P2002") throw new AppError("Ja existe usuario com este email.", 409);
+    throw error;
+  }
 }
 
 async function loginByEmail(email, password) {
   required(email, "email");
+  required(password, "password");
 
   const user = await prisma.user.findUnique({
     where: { email: String(email).trim().toLowerCase() },
     include: {
-      poolParticipants: {
+      poolMemberships: {
         include: { pool: true },
         orderBy: { pool: { name: "asc" } }
       }
@@ -128,22 +177,60 @@ async function loginByEmail(email, password) {
   });
 
   if (!user) throw new AppError("Email nao encontrado no cadastro de participantes.", 401);
-  if (password && !verifyPassword(password, user.passwordHash)) {
+  if (!verifyPassword(password, user.passwordHash)) {
     throw new AppError("Senha invalida.", 401);
   }
 
-  if (!user.poolParticipants.length) {
+  if (!user.poolMemberships.length) {
     throw new AppError("Participante nao esta vinculado a nenhum bolao.", 401);
   }
+
+  const token = signToken({ userId: user.id, email: user.email });
 
   return {
     id: user.id,
     name: user.name,
     email: user.email,
-    pools: user.poolParticipants.map(item => ({
+    token,
+    pools: user.poolMemberships.map(item => ({
       id: item.pool.id,
       name: item.pool.name,
-      entryFee: Number(item.entryFee)
+      entryFee: Number(item.entryValue),
+      entryValue: Number(item.entryValue),
+      role: item.role,
+      status: item.status,
+      isAdmin: item.role === "OWNER" || item.role === "ADMIN"
+    }))
+  };
+}
+
+async function getSessionUser(userId) {
+  required(userId, "userId");
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    include: {
+      poolMemberships: {
+        include: { pool: true },
+        orderBy: { pool: { name: "asc" } }
+      }
+    }
+  });
+
+  if (!user) throw new AppError("Usuario nao encontrado.", 404);
+
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    pools: user.poolMemberships.map(item => ({
+      id: item.pool.id,
+      name: item.pool.name,
+      entryFee: Number(item.entryValue),
+      entryValue: Number(item.entryValue),
+      role: item.role,
+      status: item.status,
+      isAdmin: item.role === "OWNER" || item.role === "ADMIN"
     }))
   };
 }
@@ -170,9 +257,11 @@ async function updatePassword(input) {
 
 module.exports = {
   createUser,
+  register,
   listUsers,
   updateUser,
   deleteUser,
   loginByEmail,
+  getSessionUser,
   updatePassword
 };

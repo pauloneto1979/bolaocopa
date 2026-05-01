@@ -23,7 +23,7 @@ function ensureBettingIsOpen(game) {
 }
 
 async function ensureParticipantInPool(userId, poolId) {
-  const membership = await prisma.poolParticipant.findUnique({
+  const membership = await prisma.poolMember.findUnique({
     where: {
       poolId_userId: {
         poolId,
@@ -35,11 +35,18 @@ async function ensureParticipantInPool(userId, poolId) {
   if (!membership) {
     throw new AppError("Usuario nao participa deste bolao.", 400);
   }
+  if (membership.status !== "ACTIVE") {
+    throw new AppError("Usuario pendente ou bloqueado nao pode apostar.", 403);
+  }
 }
 
 async function createBet(input) {
   required(input.userId, "userId");
   required(input.gameId, "gameId");
+
+  if (input.authRole === "USER" && input.userId !== input.authUserId) {
+    throw new AppError("Usuario comum so pode apostar para si mesmo.", 403);
+  }
 
   const pool = await poolService.resolvePool(input.poolId);
   const homeScore = toNonNegativeInteger(input.homeScore, "homeScore");
@@ -82,6 +89,10 @@ async function createBet(input) {
 async function listBetsByUser(userId, query = {}) {
   required(userId, "id");
 
+  if (query.authRole === "USER" && userId !== query.authUserId) {
+    throw new AppError("Usuario comum so pode visualizar suas proprias apostas.", 403);
+  }
+
   const pool = await poolService.resolvePool(query.poolId);
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) throw new AppError("Usuario nao encontrado.", 404);
@@ -99,6 +110,7 @@ async function listBets(query = {}) {
 
   if (query.userId) where.userId = query.userId;
   if (query.gameId) where.gameId = query.gameId;
+  if (query.authRole === "USER") where.userId = query.authUserId;
 
   return prisma.bet.findMany({
     where,
@@ -117,6 +129,12 @@ async function updateBet(betId, input) {
   });
 
   if (!bet) throw new AppError("Aposta nao encontrada.", 404);
+  if (input.authRole === "USER" && bet.userId !== input.authUserId) {
+    throw new AppError("Usuario comum so pode editar suas proprias apostas.", 403);
+  }
+  if (input.authRole === "USER" && input.userId !== input.authUserId) {
+    throw new AppError("Usuario comum so pode apostar para si mesmo.", 403);
+  }
 
   const pool = await poolService.resolvePool(input.poolId || bet.poolId);
   const [user, game] = await Promise.all([
@@ -156,11 +174,14 @@ async function updateBet(betId, input) {
   }
 }
 
-async function deleteBet(betId) {
+async function deleteBet(betId, context = {}) {
   required(betId, "id");
 
   const bet = await prisma.bet.findUnique({ where: { id: betId } });
   if (!bet) throw new AppError("Aposta nao encontrada.", 404);
+  if (context.authRole === "USER" && bet.userId !== context.authUserId) {
+    throw new AppError("Usuario comum so pode excluir suas proprias apostas.", 403);
+  }
 
   await prisma.bet.delete({ where: { id: betId } });
   return { deleted: true };
