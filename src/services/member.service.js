@@ -35,11 +35,25 @@ async function ensureNotRemovingLastOwner(poolId, userId, nextRole, nextStatus) 
 async function listMembers(poolId) {
   required(poolId, "poolId");
 
-  return prisma.poolMember.findMany({
+  const members = await prisma.poolMember.findMany({
     where: { poolId },
     orderBy: [{ role: "asc" }, { user: { name: "asc" } }],
     include: { user: true }
   });
+
+  return members.map(member => ({
+    id: member.id,
+    poolId: member.poolId,
+    userId: member.userId,
+    name: member.user.name,
+    email: member.user.email,
+    role: member.role,
+    status: member.status,
+    entryFee: member.entryValue,
+    entryValue: member.entryValue,
+    createdAt: member.createdAt,
+    updatedAt: member.updatedAt
+  }));
 }
 
 async function upsertMember(poolId, input) {
@@ -89,6 +103,10 @@ async function updateMember(poolId, memberId, input) {
   const role = input.role ? normalizeRole(input.role) : member.role;
   const status = input.status ? normalizeStatus(input.status) : member.status;
   const data = { role, status };
+
+  if (input.userId && input.userId !== member.userId) {
+    throw new AppError("Nao e permitido alterar o usuario de um membro. Remova e inclua novamente.", 400);
+  }
 
   if (input.entryValue !== undefined || input.entryFee !== undefined) {
     data.entryValue = toPositiveNumber(input.entryValue ?? input.entryFee, "entryValue");

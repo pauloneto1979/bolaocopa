@@ -190,7 +190,7 @@
         </div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Nome</th><th>Email</th><th>Inscricao</th><th>Acoes</th></tr></thead>
+            <thead><tr><th>Nome</th><th>Email</th><th>Perfil</th><th>Status</th><th>Inscricao</th><th>Acoes</th></tr></thead>
             <tbody id="participantsTable"></tbody>
           </table>
         </div>
@@ -322,8 +322,21 @@
 
         <form id="participantForm" class="modal-form" data-modal-form="participant">
           <input name="id" type="hidden">
-          <label>Nome<input name="name" required></label>
-          <label>Email<input name="email" type="email" required></label>
+          <label>Usuario<select name="userId" required></select></label>
+          <label>Perfil
+            <select name="role" required>
+              <option value="USER">Usuario</option>
+              <option value="ADMIN">Administrador</option>
+              <option value="OWNER">Proprietario</option>
+            </select>
+          </label>
+          <label>Status
+            <select name="status" required>
+              <option value="ACTIVE">Ativo</option>
+              <option value="PENDING">Pendente</option>
+              <option value="BLOCKED">Bloqueado</option>
+            </select>
+          </label>
           <label>Inscricao<input name="entryFee" type="number" min="0" step="0.01" required></label>
           <div class="modal-actions">
             <button class="secondary-action" type="button" data-close-modal>Cancelar</button>

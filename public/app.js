@@ -312,7 +312,7 @@ function renderTeamPickers(homeTeamId = "", awayTeamId = "") {
 function renderUsers() {
   const table = qs("#participantsTable");
   if (!state.users.length) {
-    table.innerHTML = `<tr><td class="empty" colspan="5">Nenhum participante cadastrado.</td></tr>`;
+    table.innerHTML = `<tr><td class="empty" colspan="6">Nenhum participante cadastrado.</td></tr>`;
     return;
   }
 
@@ -320,6 +320,8 @@ function renderUsers() {
     <tr>
       <td>${user.name}</td>
       <td>${user.email || "-"}</td>
+      <td>${roleLabel(user.role)}</td>
+      <td>${statusLabel(user.status)}</td>
       <td>${money.format(Number(user.entryFee || 0))}</td>
       <td>
         <div class="row-actions">
@@ -329,6 +331,24 @@ function renderUsers() {
       </td>
     </tr>
   `).join("");
+}
+
+function roleLabel(role) {
+  const labels = {
+    OWNER: "Proprietario",
+    ADMIN: "Administrador",
+    USER: "Usuario"
+  };
+  return labels[role] || role || "-";
+}
+
+function statusLabel(status) {
+  const labels = {
+    ACTIVE: "Ativo",
+    PENDING: "Pendente",
+    BLOCKED: "Bloqueado"
+  };
+  return labels[status] || status || "-";
 }
 
 function renderGroups() {
@@ -589,6 +609,12 @@ function renderSelects() {
     select.value = current;
   });
 
+  document.querySelectorAll("select[name='userId']").forEach(select => {
+    const current = select.value;
+    fillSelect(select, state.accounts, user => `${user.name} - ${user.email}`);
+    select.value = current;
+  });
+
   document.querySelectorAll("select[name='matchId']").forEach(select => {
     const current = select.value;
     fillSelect(select, state.games, gameLabel);
@@ -663,7 +689,7 @@ async function refresh() {
   ]);
   const accounts = canAdmin ? await api(poolQuery("/users/accounts")) : [];
   const users = canAdmin
-    ? await api(poolQuery("/users"))
+    ? await api(`/pools/${state.currentPool.id}/members`)
     : [{ ...state.currentUser, entryFee: state.currentPool.entryFee || state.currentPool.entryValue || 0 }];
   const bets = canAdmin
     ? await api(poolQuery("/bets"))
@@ -690,13 +716,13 @@ function bindForm(selector, handler) {
 
 bindForm("#participantForm", data => {
   const isEdit = Boolean(data.id);
-  return api(poolQuery(isEdit ? `/users/${data.id}` : "/users"), {
+  return api(isEdit ? `/pools/${state.currentPool.id}/members/${data.id}` : `/pools/${state.currentPool.id}/members`, {
     method: isEdit ? "PUT" : "POST",
     body: JSON.stringify({
-      name: data.name,
-      email: data.email,
-      entryFee: data.entryFee,
-      poolId: state.currentPool.id
+      userId: data.userId,
+      role: data.role,
+      status: data.status,
+      entryValue: data.entryFee
     })
   }).then(() => {
     closeModal();
@@ -950,13 +976,18 @@ function openModal(type, mode = "create", item = null) {
     : `${mode === "edit" ? "Alterar" : "Incluir"} ${modalTitles[type]}`;
 
   if (type === "participant" && item) {
-    form.elements.name.value = item.name || "";
-    form.elements.email.value = item.email || "";
+    form.elements.userId.value = item.userId || item.id || "";
+    form.elements.userId.disabled = true;
+    form.elements.role.value = item.role || "USER";
+    form.elements.status.value = item.status || "ACTIVE";
     form.elements.entryFee.value = Number(item.entryFee || 0);
   }
 
   if (type === "participant" && !item) {
+    form.elements.userId.disabled = false;
     form.elements.entryFee.value = state.currentPool?.entryFee ?? 50;
+    form.elements.role.value = "USER";
+    form.elements.status.value = "ACTIVE";
   }
 
   if (type === "pool" && item) {
@@ -1145,7 +1176,7 @@ document.addEventListener("click", async event => {
 
     if (deleteUserButton && window.confirm("Excluir este participante e suas apostas?")) {
       const deleteUserId = deleteUserButton.dataset.deleteUser;
-      await api(poolQuery(`/users/${deleteUserId}`), { method: "DELETE" });
+      await api(`/pools/${state.currentPool.id}/members/${deleteUserId}`, { method: "DELETE" });
       toast("Participante excluido.");
       await refresh();
     }
