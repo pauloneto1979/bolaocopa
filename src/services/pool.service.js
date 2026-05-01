@@ -57,6 +57,7 @@ async function createPool(input) {
       name: String(input.name).trim(),
       entryFee: entryValue,
       entryValue,
+      status: "OPEN",
       ownerId: user.id,
       members: {
         create: {
@@ -90,6 +91,29 @@ async function updatePool(poolId, input) {
       entryValue
     }
   });
+}
+
+async function setPoolStatus(poolId, status) {
+  required(poolId, "id");
+
+  const pool = await prisma.pool.findUnique({ where: { id: poolId } });
+  if (!pool) throw new AppError("Bolao nao encontrado.", 404);
+
+  return prisma.pool.update({
+    where: { id: poolId },
+    data: {
+      status,
+      closedAt: status === "CLOSED" ? new Date() : null
+    }
+  });
+}
+
+async function closePool(poolId) {
+  return setPoolStatus(poolId, "CLOSED");
+}
+
+async function reopenPool(poolId) {
+  return setPoolStatus(poolId, "OPEN");
 }
 
 async function deletePool(poolId) {
@@ -134,6 +158,8 @@ module.exports = {
   resolvePool,
   createPool,
   updatePool,
+  closePool,
+  reopenPool,
   deletePool,
   listPools
 };

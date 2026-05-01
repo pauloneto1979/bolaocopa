@@ -335,8 +335,10 @@ async function getAccessiblePools(user) {
       name: pool.name,
       entryFee: Number(pool.entryValue),
       entryValue: Number(pool.entryValue),
+      status: pool.status,
+      memberStatus: "ACTIVE",
+      closedAt: pool.closedAt,
       role: "OWNER",
-      status: "ACTIVE",
       isAdmin: true
     }));
   }
@@ -346,8 +348,10 @@ async function getAccessiblePools(user) {
     name: item.pool.name,
     entryFee: Number(item.entryValue),
     entryValue: Number(item.entryValue),
+    status: item.pool.status,
+    memberStatus: item.status,
+    closedAt: item.pool.closedAt,
     role: item.role,
-    status: item.status,
     isAdmin: item.role === "OWNER" || item.role === "ADMIN"
   }));
 }

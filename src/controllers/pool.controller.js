@@ -20,9 +20,19 @@ const update = asyncHandler(async (req, res) => {
   return success(res, pool);
 });
 
+const close = asyncHandler(async (req, res) => {
+  const pool = await poolService.closePool(req.params.id);
+  return success(res, pool);
+});
+
+const reopen = asyncHandler(async (req, res) => {
+  const pool = await poolService.reopenPool(req.params.id);
+  return success(res, pool);
+});
+
 const remove = asyncHandler(async (req, res) => {
   const result = await poolService.deletePool(req.params.id);
   return success(res, result);
 });
 
-module.exports = { create, list, update, remove };
+module.exports = { create, list, update, close, reopen, remove };

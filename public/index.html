@@ -38,17 +38,20 @@
           </div>
         </div>
         <nav class="side-nav">
+          <span class="nav-group-title">Bolao</span>
           <button class="nav-item active" type="button" data-section="dashboard">Dashboard</button>
-          <button class="nav-item" type="button" data-section="boloes">Boloes</button>
-          <button class="nav-item" type="button" data-section="usuarios">Usuarios</button>
-          <button class="nav-item" type="button" data-section="grupos">Grupos</button>
-          <button class="nav-item" type="button" data-section="times">Times</button>
-          <button class="nav-item" type="button" data-section="participantes">Participantes</button>
           <button class="nav-item" type="button" data-section="jogos">Jogos</button>
           <button class="nav-item" type="button" data-section="apostas">Apostas</button>
-          <button class="nav-item" type="button" data-section="resultados">Resultados</button>
           <button class="nav-item" type="button" data-section="ranking">Ranking</button>
           <button class="nav-item" type="button" data-section="premiacao">Premiacao</button>
+          <span class="nav-group-title admin-only">Administracao</span>
+          <button class="nav-item admin-only" type="button" data-section="admin">Administracao</button>
+          <button class="nav-item admin-only" type="button" data-section="boloes">Boloes</button>
+          <button class="nav-item admin-only" type="button" data-section="usuarios">Usuarios</button>
+          <button class="nav-item admin-only" type="button" data-section="participantes">Participantes</button>
+          <button class="nav-item admin-only" type="button" data-section="grupos">Grupos</button>
+          <button class="nav-item admin-only" type="button" data-section="times">Times</button>
+          <button class="nav-item admin-only" type="button" data-section="resultados">Resultados</button>
         </nav>
         <div class="sidebar-footer">
           <label>Bolao ativo<select id="activePoolSelect"></select></label>
@@ -131,6 +134,13 @@
             </div>
           </section>
 
+          <section id="admin" class="section page-section">
+            <div class="section-title">
+              <h1>Administracao</h1>
+            </div>
+            <div class="admin-grid" id="adminCards"></div>
+          </section>
+
           <section id="boloes" class="section page-section">
             <div class="section-title">
               <h1>Boloes</h1>
@@ -138,7 +148,7 @@
             </div>
             <div class="table-wrap">
               <table>
-                <thead><tr><th>Nome</th><th>Inscricao padrao</th><th>Acoes</th></tr></thead>
+                <thead><tr><th>Nome</th><th>Status</th><th>Inscricao padrao</th><th>Encerramento</th><th>Acoes</th></tr></thead>
                 <tbody id="poolsTable"></tbody>
               </table>
             </div>
@@ -203,7 +213,7 @@
         </div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Data</th><th>Estadio</th><th>Grupo</th><th>Mandante</th><th>Resultado</th><th>Visitante</th><th>Acoes</th></tr></thead>
+            <thead><tr><th>Data</th><th>Estadio</th><th>Grupo</th><th>Mandante</th><th>Placar</th><th>Visitante</th><th>Acoes</th></tr></thead>
             <tbody id="matchesTable"></tbody>
           </table>
         </div>

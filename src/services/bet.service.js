@@ -22,6 +22,12 @@ function ensureBettingIsOpen(game) {
   }
 }
 
+function ensurePoolIsOpen(pool) {
+  if (pool.status && pool.status !== "OPEN") {
+    throw new AppError("Apostas bloqueadas porque este bolao esta encerrado.", 400);
+  }
+}
+
 async function ensureParticipantInPool(userId, poolId) {
   const membership = await prisma.poolMember.findUnique({
     where: {
@@ -60,6 +66,7 @@ async function createBet(input) {
 
   if (!user) throw new AppError("Usuario nao encontrado.", 404);
   if (!game) throw new AppError("Jogo nao encontrado.", 404);
+  ensurePoolIsOpen(pool);
   await ensureParticipantInPool(user.id, pool.id);
   ensureBettingIsOpen(game);
 
@@ -144,6 +151,7 @@ async function updateBet(betId, input) {
 
   if (!user) throw new AppError("Usuario nao encontrado.", 404);
   if (!game) throw new AppError("Jogo nao encontrado.", 404);
+  ensurePoolIsOpen(pool);
   await ensureParticipantInPool(user.id, pool.id);
   ensureBettingIsOpen(game);
 
@@ -182,6 +190,9 @@ async function deleteBet(betId, context = {}) {
   if (context.authRole === "USER" && bet.userId !== context.authUserId) {
     throw new AppError("Usuario comum so pode excluir suas proprias apostas.", 403);
   }
+
+  const pool = bet.poolId ? await poolService.resolvePool(bet.poolId) : null;
+  if (pool) ensurePoolIsOpen(pool);
 
   await prisma.bet.delete({ where: { id: betId } });
   return { deleted: true };

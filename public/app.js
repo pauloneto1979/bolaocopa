@@ -26,6 +26,10 @@ const pageLabels = {
     title: "Dashboard",
     subtitle: "Resumo geral do BolaoCopa"
   },
+  admin: {
+    title: "Administracao",
+    subtitle: "Gestao de boloes, usuarios e cadastros"
+  },
   grupos: {
     title: "Grupos",
     subtitle: "Cadastro dos grupos da competicao"
@@ -145,11 +149,14 @@ function isPoolAdmin() {
 }
 
 function renderRoleAccess() {
-  const adminOnlySections = ["boloes", "usuarios", "grupos", "times", "participantes", "resultados"];
+  const adminOnlySections = ["admin", "boloes", "usuarios", "grupos", "times", "participantes", "resultados"];
   const canAdmin = isPoolAdmin();
 
   document.querySelectorAll(".nav-item").forEach(item => {
     item.hidden = adminOnlySections.includes(item.dataset.section) && !canAdmin;
+  });
+  document.querySelectorAll(".admin-only").forEach(item => {
+    item.hidden = !canAdmin;
   });
 
   if (!canAdmin && adminOnlySections.includes(qs(".page-section.active")?.id)) {
@@ -191,7 +198,15 @@ function updateCurrentUserPool(pool) {
   if (!state.currentUser?.pools) return;
 
   state.currentUser.pools = state.currentUser.pools.map(item => (
-    item.id === pool.id ? { id: pool.id, name: pool.name, entryFee: Number(pool.entryFee) } : item
+    item.id === pool.id ? {
+      ...item,
+      id: pool.id,
+      name: pool.name,
+      entryFee: Number(pool.entryFee || pool.entryValue || 0),
+      entryValue: Number(pool.entryValue || pool.entryFee || 0),
+      status: pool.status,
+      closedAt: pool.closedAt
+    } : item
   ));
   setCurrentUser(state.currentUser);
 }
@@ -255,11 +270,13 @@ function fillSelect(select, items, labelFn) {
 
 const icons = {
   edit: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4l10.5-10.5-4-4L4 16v4z"></path><path d="M13.5 6.5l4 4"></path></svg>`,
-  trash: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M6 7l1 14h10l1-14"></path><path d="M9 7V4h6v3"></path></svg>`
+  trash: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M6 7l1 14h10l1-14"></path><path d="M9 7V4h6v3"></path></svg>`,
+  lock: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="10" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg>`,
+  unlock: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="10" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 7.6-1.8"></path></svg>`
 };
 
 function actionButton(kind, dataAttr, id, title) {
-  return `<button class="icon-action ${kind === "trash" ? "danger" : ""}" type="button" ${dataAttr}="${id}" title="${title}" aria-label="${title}">${icons[kind]}</button>`;
+  return `<button class="icon-action ${kind === "trash" || kind === "lock" ? "danger" : ""}" type="button" ${dataAttr}="${id}" title="${title}" aria-label="${title}">${icons[kind]}</button>`;
 }
 
 function crestHtml(team) {
@@ -351,6 +368,15 @@ function statusLabel(status) {
   return labels[status] || status || "-";
 }
 
+function poolStatusLabel(status) {
+  const labels = {
+    OPEN: "Aberto",
+    CLOSED: "Encerrado",
+    ARCHIVED: "Arquivado"
+  };
+  return labels[status] || status || "Aberto";
+}
+
 function renderGroups() {
   const table = qs("#groupsTable");
   if (!state.groups.length) {
@@ -374,21 +400,79 @@ function renderGroups() {
 function renderPools() {
   const table = qs("#poolsTable");
   if (!state.pools.length) {
-    table.innerHTML = `<tr><td class="empty" colspan="3">Nenhum bolao cadastrado.</td></tr>`;
+    table.innerHTML = `<tr><td class="empty" colspan="5">Nenhum bolao cadastrado.</td></tr>`;
     return;
   }
 
   table.innerHTML = state.pools.map(pool => `
     <tr>
       <td>${pool.name}</td>
-      <td>${money.format(Number(pool.entryFee || 0))}</td>
+      <td><span class="status-pill ${pool.status === "CLOSED" ? "closed" : "open"}">${poolStatusLabel(pool.status)}</span></td>
+      <td>${money.format(Number(pool.entryValue || pool.entryFee || 0))}</td>
+      <td>${pool.closedAt ? formatDateTime(pool.closedAt) : "-"}</td>
       <td>
         <div class="row-actions">
           ${actionButton("edit", "data-edit-pool", pool.id, "Alterar")}
+          ${pool.status === "CLOSED"
+            ? actionButton("unlock", "data-reopen-pool", pool.id, "Reabrir")
+            : actionButton("lock", "data-close-pool", pool.id, "Encerrar")}
           ${actionButton("trash", "data-delete-pool", pool.id, "Excluir")}
         </div>
       </td>
     </tr>
+  `).join("");
+}
+
+function renderAdminDashboard() {
+  const panel = qs("#adminCards");
+  if (!panel) return;
+
+  const activePool = state.currentPool;
+  const cards = [
+    {
+      title: "Boloes",
+      value: state.pools.length,
+      text: "Criar, alterar, encerrar ou reabrir boloes.",
+      section: "boloes"
+    },
+    {
+      title: "Usuarios",
+      value: state.accounts.length,
+      text: "Criar acessos e manter dados dos apostadores.",
+      section: "usuarios"
+    },
+    {
+      title: "Participantes",
+      value: state.users.length,
+      text: "Associar usuarios ao bolao ativo e definir perfil.",
+      section: "participantes"
+    },
+    {
+      title: "Bolao ativo",
+      value: poolStatusLabel(activePool?.status),
+      text: activePool?.name || "-",
+      section: "boloes"
+    },
+    {
+      title: "Cadastros",
+      value: state.teams.length + state.groups.length,
+      text: "Grupos, times e estrutura dos jogos.",
+      section: "grupos"
+    },
+    {
+      title: "Resultados",
+      value: state.games.filter(game => game.status === "FINISHED").length,
+      text: "Lancamento de placares finais.",
+      section: "resultados"
+    }
+  ];
+
+  panel.innerHTML = cards.map(card => `
+    <button class="admin-card" type="button" data-admin-go="${card.section}">
+      <span>${card.title}</span>
+      <strong>${card.value}</strong>
+      <small>${card.text}</small>
+    </button>
   `).join("");
 }
 
@@ -630,6 +714,7 @@ function renderSelects() {
 
 function renderAll() {
   renderDashboard();
+  renderAdminDashboard();
   renderPools();
   renderAccounts();
   renderGroups();
@@ -695,6 +780,21 @@ async function refresh() {
     ? await api(poolQuery("/bets"))
     : await api(poolQuery(`/bets/user/${state.currentUser.id}`));
 
+  const refreshedPool = pools.find(pool => pool.id === state.currentPool.id);
+  if (refreshedPool) {
+    const normalizedPool = {
+      ...state.currentPool,
+      id: refreshedPool.id,
+      name: refreshedPool.name,
+      entryFee: Number(refreshedPool.entryFee || refreshedPool.entryValue || 0),
+      entryValue: Number(refreshedPool.entryValue || refreshedPool.entryFee || 0),
+      status: refreshedPool.status,
+      closedAt: refreshedPool.closedAt
+    };
+    setCurrentPool(normalizedPool);
+    updateCurrentUserPool(refreshedPool);
+  }
+
   Object.assign(state, { accounts, pools, users, groups, teams, games, bets, ranking, prizes });
   renderAll();
   renderRoleAccess();
@@ -741,7 +841,15 @@ bindForm("#poolForm", data => {
   }).then(async pool => {
     if (isEdit && state.currentPool?.id === pool.id) {
       updateCurrentUserPool(pool);
-      setCurrentPool({ id: pool.id, name: pool.name, entryFee: Number(pool.entryFee) });
+      setCurrentPool({
+        ...state.currentPool,
+        id: pool.id,
+        name: pool.name,
+        entryFee: Number(pool.entryFee || pool.entryValue || 0),
+        entryValue: Number(pool.entryValue || pool.entryFee || 0),
+        status: pool.status,
+        closedAt: pool.closedAt
+      });
     }
     closeModal();
     toast(isEdit ? "Bolao alterado." : "Bolao cadastrado.");
@@ -877,6 +985,13 @@ qs("#sidebarToggle").addEventListener("click", () => {
 
 document.querySelectorAll(".nav-item").forEach(item => {
   item.addEventListener("click", () => showSection(item.dataset.section));
+});
+
+document.addEventListener("click", event => {
+  const adminCard = event.target.closest("[data-admin-go]");
+  if (adminCard) {
+    showSection(adminCard.dataset.adminGo);
+  }
 });
 
 qs("#loginForm").addEventListener("submit", async event => {
@@ -1083,6 +1198,8 @@ document.addEventListener("click", async event => {
   const togglePicker = event.target.closest("[data-toggle-team-picker]");
   const selectTeam = event.target.closest("[data-select-team]");
   const poolButton = event.target.closest("[data-edit-pool]");
+  const closePoolButton = event.target.closest("[data-close-pool]");
+  const reopenPoolButton = event.target.closest("[data-reopen-pool]");
   const deletePoolButton = event.target.closest("[data-delete-pool]");
   const accountButton = event.target.closest("[data-edit-account]");
   const deleteAccountButton = event.target.closest("[data-delete-account]");
@@ -1127,6 +1244,22 @@ document.addEventListener("click", async event => {
 
     if (poolButton) {
       openModal("pool", "edit", state.pools.find(pool => pool.id === poolButton.dataset.editPool));
+    }
+
+    if (closePoolButton && window.confirm("Encerrar este bolao? Novas apostas serao bloqueadas.")) {
+      const closePoolId = closePoolButton.dataset.closePool;
+      await api(`/pools/${closePoolId}/close`, { method: "PUT" });
+      toast("Bolao encerrado.");
+      await refresh();
+      return;
+    }
+
+    if (reopenPoolButton && window.confirm("Reabrir este bolao para novas apostas?")) {
+      const reopenPoolId = reopenPoolButton.dataset.reopenPool;
+      await api(`/pools/${reopenPoolId}/reopen`, { method: "PUT" });
+      toast("Bolao reaberto.");
+      await refresh();
+      return;
     }
 
     if (accountButton) {

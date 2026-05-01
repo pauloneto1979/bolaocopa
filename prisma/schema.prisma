@@ -26,39 +26,47 @@ enum MemberStatus {
   BLOCKED
 }
 
+enum PoolStatus {
+  OPEN
+  CLOSED
+  ARCHIVED
+}
+
 model Pool {
-  id        String   @id @default(uuid())
-  name      String
-  entryFee  Decimal  @db.Decimal(10, 2)
-  entryValue Decimal @default(50) @db.Decimal(10, 2)
-  ownerId   String?
-  owner     User?    @relation("PoolOwner", fields: [ownerId], references: [id], onDelete: SetNull)
-  users     User[]
+  id           String            @id @default(uuid())
+  name         String
+  entryFee     Decimal           @db.Decimal(10, 2)
+  entryValue   Decimal           @default(50) @db.Decimal(10, 2)
+  status       PoolStatus        @default(OPEN)
+  closedAt     DateTime?
+  ownerId      String?
+  owner        User?             @relation("PoolOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  users        User[]
   participants PoolParticipant[]
-  members   PoolMember[]
-  bets      Bet[]
-  prizes    Prize[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  members      PoolMember[]
+  bets         Bet[]
+  prizes       Prize[]
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
 
   @@map("pools")
 }
 
 model User {
-  id        String   @id @default(uuid())
-  name      String
-  email     String   @unique
-  passwordHash String?
-  entryFee  Decimal  @default(50) @db.Decimal(10, 2)
-  poolId    String?
-  pool      Pool?    @relation(fields: [poolId], references: [id], onDelete: SetNull)
+  id               String            @id @default(uuid())
+  name             String
+  email            String            @unique
+  passwordHash     String?
+  entryFee         Decimal           @default(50) @db.Decimal(10, 2)
+  poolId           String?
+  pool             Pool?             @relation(fields: [poolId], references: [id], onDelete: SetNull)
   poolParticipants PoolParticipant[]
-  poolMemberships PoolMember[]
-  ownedPools Pool[] @relation("PoolOwner")
-  bets      Bet[]
-  prizes    Prize[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  poolMemberships  PoolMember[]
+  ownedPools       Pool[]            @relation("PoolOwner")
+  bets             Bet[]
+  prizes           Prize[]
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
 
   @@index([poolId])
   @@map("users")
@@ -81,16 +89,16 @@ model PoolParticipant {
 }
 
 model PoolMember {
-  id        String       @id @default(uuid())
-  poolId    String
-  userId    String
-  role      Role         @default(USER)
-  status    MemberStatus @default(PENDING)
-  entryValue Decimal     @default(50) @db.Decimal(10, 2)
-  pool      Pool         @relation(fields: [poolId], references: [id], onDelete: Cascade)
-  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
+  id         String       @id @default(uuid())
+  poolId     String
+  userId     String
+  role       Role         @default(USER)
+  status     MemberStatus @default(PENDING)
+  entryValue Decimal      @default(50) @db.Decimal(10, 2)
+  pool       Pool         @relation(fields: [poolId], references: [id], onDelete: Cascade)
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
 
   @@unique([poolId, userId])
   @@index([poolId])
@@ -101,24 +109,24 @@ model PoolMember {
 }
 
 model Game {
-  id         String     @id @default(uuid())
-  externalId String?    @unique
-  homeTeamId String?
-  awayTeamId String?
-  groupId    String?
-  homeTeam   String
-  awayTeam   String
+  id          String     @id @default(uuid())
+  externalId  String?    @unique
+  homeTeamId  String?
+  awayTeamId  String?
+  groupId     String?
+  homeTeam    String
+  awayTeam    String
   stadiumName String?
-  gameDate   DateTime
-  homeScore  Int?
-  awayScore  Int?
-  status     GameStatus @default(SCHEDULED)
+  gameDate    DateTime
+  homeScore   Int?
+  awayScore   Int?
+  status      GameStatus @default(SCHEDULED)
   homeTeamRef Team?      @relation("HomeTeamGames", fields: [homeTeamId], references: [id], onDelete: SetNull)
   awayTeamRef Team?      @relation("AwayTeamGames", fields: [awayTeamId], references: [id], onDelete: SetNull)
-  group      Group?      @relation(fields: [groupId], references: [id], onDelete: SetNull)
-  bets       Bet[]
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
+  group       Group?     @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  bets        Bet[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
 
   @@index([homeTeamId])
   @@index([awayTeamId])
