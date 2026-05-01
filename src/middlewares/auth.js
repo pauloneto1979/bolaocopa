@@ -47,7 +47,33 @@ function requirePoolRole(roles, options = {}) {
         include: { pool: true }
       });
 
-      if (!member) throw new AppError("Usuario nao participa deste bolao.", 403);
+      if (!member) {
+        const globalOwner = await prisma.poolMember.findFirst({
+          where: {
+            userId: req.user.id,
+            role: "OWNER",
+            status: "ACTIVE"
+          }
+        });
+
+        if (!globalOwner) throw new AppError("Usuario nao participa deste bolao.", 403);
+
+        const pool = await prisma.pool.findUnique({ where: { id: poolId } });
+        if (!pool) throw new AppError("Bolao nao encontrado.", 404);
+
+        req.poolMember = {
+          id: null,
+          poolId,
+          userId: req.user.id,
+          role: "OWNER",
+          status: "ACTIVE",
+          entryValue: pool.entryValue,
+          pool
+        };
+        req.pool = pool;
+        return next();
+      }
+
       if (member.status === "BLOCKED") throw new AppError("Usuario bloqueado neste bolao.", 403);
       if (!allowPending && member.status !== "ACTIVE") {
         throw new AppError("Usuario pendente nao pode executar esta acao.", 403);

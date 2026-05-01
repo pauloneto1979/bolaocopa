@@ -311,22 +311,45 @@ async function loginByEmail(email, password) {
   }
 
   const token = signToken({ userId: user.id, email: user.email });
+  const pools = await getAccessiblePools(user);
 
   return {
     id: user.id,
     name: user.name,
     email: user.email,
     token,
-    pools: user.poolMemberships.map(item => ({
-      id: item.pool.id,
-      name: item.pool.name,
-      entryFee: Number(item.entryValue),
-      entryValue: Number(item.entryValue),
-      role: item.role,
-      status: item.status,
-      isAdmin: item.role === "OWNER" || item.role === "ADMIN"
-    }))
+    pools
   };
+}
+
+async function getAccessiblePools(user) {
+  const activeOwner = user.poolMemberships.some(item => item.role === "OWNER" && item.status === "ACTIVE");
+
+  if (activeOwner) {
+    const pools = await prisma.pool.findMany({
+      orderBy: { name: "asc" }
+    });
+
+    return pools.map(pool => ({
+      id: pool.id,
+      name: pool.name,
+      entryFee: Number(pool.entryValue),
+      entryValue: Number(pool.entryValue),
+      role: "OWNER",
+      status: "ACTIVE",
+      isAdmin: true
+    }));
+  }
+
+  return user.poolMemberships.map(item => ({
+    id: item.pool.id,
+    name: item.pool.name,
+    entryFee: Number(item.entryValue),
+    entryValue: Number(item.entryValue),
+    role: item.role,
+    status: item.status,
+    isAdmin: item.role === "OWNER" || item.role === "ADMIN"
+  }));
 }
 
 async function getSessionUser(userId) {
@@ -343,20 +366,13 @@ async function getSessionUser(userId) {
   });
 
   if (!user) throw new AppError("Usuario nao encontrado.", 404);
+  const pools = await getAccessiblePools(user);
 
   return {
     id: user.id,
     name: user.name,
     email: user.email,
-    pools: user.poolMemberships.map(item => ({
-      id: item.pool.id,
-      name: item.pool.name,
-      entryFee: Number(item.entryValue),
-      entryValue: Number(item.entryValue),
-      role: item.role,
-      status: item.status,
-      isAdmin: item.role === "OWNER" || item.role === "ADMIN"
-    }))
+    pools
   };
 }
 
